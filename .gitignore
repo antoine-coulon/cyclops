@@ -1,4 +1,2 @@
 node_modules
-dist
-fixtures
-todo.txt
+.pnpm-debug.log
