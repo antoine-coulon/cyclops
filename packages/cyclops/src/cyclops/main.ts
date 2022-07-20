@@ -7,9 +7,9 @@ import { parseScript } from "meriyah";
 import { FileReader, FileSystemReader } from "../file-reader/index.js";
 
 import { isCommonJSModuleImport } from "./modules/cjs.js";
-import { isEcmaScriptModuleImport } from "./modules/esm.js";
+import { isEcmaScriptModuleDeclaration } from "./modules/esm.js";
 import {
-  adaptModuleExtension,
+  resolveImportedModulePath,
   isBinaryModule,
   isBuiltinModule,
   isJSONModule,
@@ -87,7 +87,7 @@ export class Cyclops {
           moduleDeclarations.add(node.arguments[0].value);
         }
 
-        if (isEcmaScriptModuleImport(node)) {
+        if (isEcmaScriptModuleDeclaration(node)) {
           moduleDeclarations.add(node.source.value);
         }
       }
@@ -109,8 +109,9 @@ export class Cyclops {
         continue;
       }
 
-      const fullFilePathFromEntrypoint = adaptModuleExtension(
-        path.join(path.dirname(rootDir), moduleDeclaration)
+      const fullFilePathFromEntrypoint = await resolveImportedModulePath(
+        path.join(path.dirname(rootDir), moduleDeclaration),
+        this.fileReader
       );
 
       try {
@@ -163,12 +164,17 @@ export class Cyclops {
   }
 
   public async initialize(): Promise<CyclopsInstance> {
-    const entrypoint = adaptModuleExtension(this.config.entrypoint);
-    const rootFileContent = await this.fileReader.read(entrypoint);
-    const rootDirPath = entrypoint;
+    const entrypointModulePath = await resolveImportedModulePath(
+      this.config.entrypoint,
+      this.fileReader
+    );
+    const rootFileContent = await this.fileReader.read(entrypointModulePath);
 
-    this.addNode(entrypoint);
-    await this.followModuleDeclarationsFromFile(rootDirPath, rootFileContent);
+    this.addNode(entrypointModulePath);
+    await this.followModuleDeclarationsFromFile(
+      entrypointModulePath,
+      rootFileContent
+    );
 
     return {
       getStructure: this.makeProjectStructure.bind(this),

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /* eslint-disable no-sync */
 
 import { expect } from "chai";
@@ -591,76 +592,192 @@ describe("When traversing a JavaScript/Node.js project", () => {
 
       describe("When the project uses CommonJS modules", () => {
         describe("When extracting import declarations", () => {
-          const mixOfScenariosWithRequireImports = [
-            {
-              description:
-                "When the file has one require identifier without the file extension",
-              requireIdentifier: `require("./src/foo")`,
-              expectedFinalFileExtension: "js"
-            },
-            {
-              description:
-                "When the file has one require identifier with a .js extension",
-              requireIdentifier: `require("./src/foo.js")`,
-              expectedFinalFileExtension: "js"
-            },
-            {
-              description:
-                "When the file has one require identifier with a .cjs extension",
-              requireIdentifier: `require("./src/foo.cjs")`,
-              expectedFinalFileExtension: "cjs"
-            }
-          ];
+          describe("When extracting import declarations targetting files", () => {
+            const mixOfScenariosWithRequireImports = [
+              {
+                description:
+                  "When the file has one require identifier without the file extension",
+                requireIdentifier: `require("./src/foo")`,
+                expectedFinalFileExtension: "js"
+              },
+              {
+                description:
+                  "When the file has one require identifier with a .js extension",
+                requireIdentifier: `require("./src/foo.js")`,
+                expectedFinalFileExtension: "js"
+              },
+              {
+                description:
+                  "When the file has one require identifier with a .cjs extension",
+                requireIdentifier: `require("./src/foo.cjs")`,
+                expectedFinalFileExtension: "cjs"
+              }
+            ];
 
-          for (const scenarioWithRequireImport of mixOfScenariosWithRequireImports) {
-            it(scenarioWithRequireImport.description, async () => {
-              const fakeFileSystem = {
-                "index.js": `
+            for (const scenarioWithRequireImport of mixOfScenariosWithRequireImports) {
+              it(scenarioWithRequireImport.description, async () => {
+                const fakeFileSystem = {
+                  "index.js": `
                   const { foo } = ${scenarioWithRequireImport.requireIdentifier};
           
                   console.log(foo.doSomething());
                 `,
-                [`src/foo.${scenarioWithRequireImport.expectedFinalFileExtension}`]: `
+                  [`src/foo.${scenarioWithRequireImport.expectedFinalFileExtension}`]: `
                   module.exports.foo = { doSomething: () => 'Hello, world!' };
                 `
+                };
+
+                memfs.vol.fromJSON(fakeFileSystem, "./");
+
+                const projectStructure =
+                  await buildProjectStructureUsingInMemoryFileExplorer(
+                    "index.js",
+                    false
+                  );
+
+                expect(projectStructure).to.be.deep.equal({
+                  graph: {
+                    "index.js": {
+                      adjacentTo: [
+                        `src/foo.${scenarioWithRequireImport.expectedFinalFileExtension}`
+                      ],
+                      id: `index.js`,
+                      body: { size: 0 }
+                    },
+                    [`src/foo.${scenarioWithRequireImport.expectedFinalFileExtension}`]:
+                      {
+                        adjacentTo: [],
+                        id: `src/foo.${scenarioWithRequireImport.expectedFinalFileExtension}`,
+                        body: { size: 0 }
+                      }
+                  },
+                  files: [
+                    `index.js`,
+                    `src/foo.${scenarioWithRequireImport.expectedFinalFileExtension}`
+                  ],
+                  circularDependencies: [],
+                  hasCircularDependencies: false,
+                  leaves: [
+                    `src/foo.${scenarioWithRequireImport.expectedFinalFileExtension}`
+                  ]
+                });
+              });
+            }
+          });
+
+          describe("When extracting import declarations targetting folders", () => {
+            it("should find the index.js linked to the folder import", async () => {
+              const fakeFileSystem = {
+                "index.js": `
+                  const { foo } = require("./lib");
+                  const { foobar } = require("./foobar");
+                `,
+                "lib/index.js": "",
+                "foobar.js": ""
               };
 
               memfs.vol.fromJSON(fakeFileSystem, "./");
 
               const projectStructure =
                 await buildProjectStructureUsingInMemoryFileExplorer(
-                  "index.js",
-                  false
+                  "index.js"
                 );
 
               expect(projectStructure).to.be.deep.equal({
                 graph: {
                   "index.js": {
-                    adjacentTo: [
-                      `src/foo.${scenarioWithRequireImport.expectedFinalFileExtension}`
-                    ],
-                    id: `index.js`,
+                    adjacentTo: ["lib/index.js", "foobar.js"],
+                    id: "index.js",
                     body: { size: 0 }
                   },
-                  [`src/foo.${scenarioWithRequireImport.expectedFinalFileExtension}`]:
-                    {
-                      adjacentTo: [],
-                      id: `src/foo.${scenarioWithRequireImport.expectedFinalFileExtension}`,
-                      body: { size: 0 }
-                    }
+                  "lib/index.js": {
+                    adjacentTo: [],
+                    id: "lib/index.js",
+                    body: { size: 0 }
+                  },
+                  "foobar.js": {
+                    adjacentTo: [],
+                    id: "foobar.js",
+                    body: { size: 0 }
+                  }
+                },
+                files: ["index.js", "lib/index.js", "foobar.js"],
+                circularDependencies: [],
+                hasCircularDependencies: false,
+                leaves: ["lib/index.js", "foobar.js"]
+              });
+            });
+          });
+        });
+
+        describe("When extracting export declarations", () => {
+          describe("When exporting something imported", () => {
+            it("should add a link between the file exporting and the file being imported", async () => {
+              const fakeFileSystem = {
+                "index.js": `
+                  const { foo } = require("./lib");
+                  const { foobar } = require("./foobar");
+                `,
+                "lib/index.js": `
+                  module.exports = require("../fizzbuzz.js");
+                `,
+                "fizzbuzz.js": `
+                  module.exports.foobaz = require("./foobaz.js");
+                `,
+                "foobar.js": `
+                  exports.foobaz = require("./foobaz.js");
+                `,
+                "foobaz.js": ""
+              };
+
+              memfs.vol.fromJSON(fakeFileSystem, "./");
+
+              const projectStructure =
+                await buildProjectStructureUsingInMemoryFileExplorer(
+                  "index.js"
+                );
+
+              expect(projectStructure).to.be.deep.equal({
+                graph: {
+                  "index.js": {
+                    adjacentTo: ["lib/index.js", "foobar.js"],
+                    id: "index.js",
+                    body: { size: 0 }
+                  },
+                  "lib/index.js": {
+                    adjacentTo: ["fizzbuzz.js"],
+                    id: "lib/index.js",
+                    body: { size: 0 }
+                  },
+                  "foobar.js": {
+                    adjacentTo: ["foobaz.js"],
+                    id: "foobar.js",
+                    body: { size: 0 }
+                  },
+                  "fizzbuzz.js": {
+                    adjacentTo: ["foobaz.js"],
+                    id: "fizzbuzz.js",
+                    body: { size: 0 }
+                  },
+                  "foobaz.js": {
+                    adjacentTo: [],
+                    id: "foobaz.js",
+                    body: { size: 0 }
+                  }
                 },
                 files: [
-                  `index.js`,
-                  `src/foo.${scenarioWithRequireImport.expectedFinalFileExtension}`
+                  "index.js",
+                  "lib/index.js",
+                  "fizzbuzz.js",
+                  "foobaz.js",
+                  "foobar.js"
                 ],
                 circularDependencies: [],
                 hasCircularDependencies: false,
-                leaves: [
-                  `src/foo.${scenarioWithRequireImport.expectedFinalFileExtension}`
-                ]
+                leaves: ["foobaz.js"]
               });
             });
-          }
+          });
         });
       });
 
