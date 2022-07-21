@@ -2,10 +2,13 @@
   "name": "cyclops",
   "version": "0.0.1",
   "description": "Automatically construct and visualize Graphs generated from your Node.js project",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "type": "module",
   "author": "Antoine Coulon",
   "license": "MIT",
+  "bin": {
+    "cyclops": "./dist/bin/cli.js"
+  },
   "scripts": {
     "prestart": "npm run build",
     "prepublishOnly": "npm run test && npm run build",
@@ -42,6 +45,9 @@
     "ts-node": "^10.8.1",
     "typescript": "^4.5.2"
   },
+  "files": [
+    "dist"
+  ],
   "keywords": [
     "javascript",
     "graph",
