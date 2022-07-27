@@ -9,7 +9,7 @@
 > **cyclops** is meant to represent all the file tree structure but was designed to only include dependencies that are currently being used in the project based on the entrypoint. Consequently unused files won't be included in the graph structure.
 
 * ✅ Works for **JavaScript/Node.js** projects (ECMAScript and CommonJS modules)
-* ✅ Deeply detects **circular dependencies** in an efficient way
+* ✅ Deeply detects **circular dependencies** in an efficient way, with the ability to provide a max depth for the search
 * ✅ Deeply **collect all dependencies of the project graph**
 * ✅ Deep **parent and child dependencies traversals**
 * ✅ Node.js core, binary and JSON modules are excluded by default
@@ -52,6 +52,14 @@ const { getCircularDependencies, hasCircularDependencies } = await cyclops({
 
 console.log(getCircularDependencies()); // logs [ [ "core.js", "utils.js" ] ]
 console.log(hasCircularDependencies()); // logs "true"
+
+/**
+ * The search for circular dependencies can also be restricted to a certain depth.
+ * This can be useful on big projects for performance purposes.
+ * This defaults to POSITIVE_INFINITY.
+ */
+console.log(getCircularDependencies({ maxDepth: 5 })); 
+console.log(hasCircularDependencies({ maxDepth: 5 })); 
 ```
 
 **Search for leaves (nodes with no children i.e: dependency)**

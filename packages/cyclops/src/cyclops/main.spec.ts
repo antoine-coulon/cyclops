@@ -21,7 +21,10 @@ async function buildProjectStructureUsingInMemoryFileExplorer(
   entrypoint: string,
   module = true
 ): Promise<CyclopsStructure> {
-  const cyclops = new Cyclops({ entrypoint, module }, new InMemoryFileReader());
+  const cyclops = new Cyclops(
+    { entrypoint, module, circularMaxDepth: Number.POSITIVE_INFINITY },
+    new InMemoryFileReader()
+  );
   const cyclopsInstance = await cyclops.initialize();
 
   return cyclopsInstance.getStructure();
@@ -824,7 +827,11 @@ describe("When traversing a JavaScript/Node.js project", () => {
           memfs.vol.fromJSON(fakeFileSystem, "./");
 
           const cyclops = new Cyclops(
-            { entrypoint: "a.js", module: true },
+            {
+              entrypoint: "a.js",
+              module: true,
+              circularMaxDepth: Number.POSITIVE_INFINITY
+            },
             new InMemoryFileReader()
           );
 

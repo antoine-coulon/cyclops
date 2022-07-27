@@ -21,6 +21,7 @@ type CyclopsNode = VertexDefinition<{ size: number }>;
 export interface CyclopsConfig {
   entrypoint: string;
   module: boolean;
+  circularMaxDepth?: number;
 }
 
 export interface CyclopsStructure {
@@ -134,11 +135,15 @@ export class Cyclops {
   }
 
   private hasCircularDependencies(): boolean {
-    return this.#projectGraph.hasCycles();
+    return this.#projectGraph.hasCycles({
+      maxDepth: this.config.circularMaxDepth ?? Number.POSITIVE_INFINITY
+    });
   }
 
   private circularDependencies(): string[][] {
-    return this.#projectGraph.findCycles();
+    return this.#projectGraph.findCycles({
+      maxDepth: this.config.circularMaxDepth ?? Number.POSITIVE_INFINITY
+    });
   }
 
   private findLeaves(): string[] {
