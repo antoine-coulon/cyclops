@@ -1,4 +1,4 @@
-import path from "path";
+import path from "node:path";
 
 import { DiGraph, VertexDefinition } from "digraph-js";
 import { walk } from "estree-walker";
@@ -22,6 +22,7 @@ export interface CyclopsConfig {
   entrypoint: string;
   module: boolean;
   circularMaxDepth?: number;
+  includeBaseDir: boolean;
 }
 
 export interface CyclopsStructure {
@@ -40,18 +41,86 @@ export interface CyclopsInstance {
   findParentsOf: (node: string) => string[];
 }
 
+const defaultConfig = {
+  entrypoint: "",
+  module: true,
+  includeBaseDir: false,
+  circularMaxDepth: Number.POSITIVE_INFINITY
+};
+
 export class Cyclops {
   #projectGraph = new DiGraph<CyclopsNode>();
   #visitedNodes = new Set<string>();
+  #baseDir = "";
 
   constructor(
-    private readonly config: CyclopsConfig,
+    private readonly config: CyclopsConfig = defaultConfig,
     private readonly fileReader: FileReader = new FileSystemReader()
-  ) {}
+  ) {
+    if (!this.config.entrypoint) {
+      throw new Error(
+        "An entrypoint must be provided to Cyclops to build the graph"
+      );
+    }
+  }
+
+  private formatNodePath(nodePath: string): string {
+    /**
+     * When the base directory name has to be included, every node path should be
+     * registered while being discovered without any further do
+     */
+    if (this.config.includeBaseDir) {
+      return nodePath;
+    }
+
+    /**
+     * When the base directory name has to be ignored, we try to remove it
+     * in the current node path.
+     * "lib/index.js" <-- "lib" is the base directory name
+     * "lib/util/index.js" <-- "lib" must be removed from the node path.
+     *
+     * Given that "lib/index.js" uses "lib/util/index.js" we should have the
+     * following graph:
+     * {
+     *    "index.js": {
+     *      adjacentTo: ["util/index.js"]
+     *    },
+     *    "util/index.js": {}
+     * }
+     * See above how "lib/" was removed from the "lib/util/index.js" node path
+     * because everything needs to be relative to the entrypoint when not including
+     * base directory name.
+     */
+    const baseDirWithFileSystemSeparator = this.#baseDir.concat(path.sep);
+    const nodePathWithoutBaseDir = nodePath.split(
+      baseDirWithFileSystemSeparator
+    )[1];
+
+    if (nodePathWithoutBaseDir) {
+      return nodePathWithoutBaseDir;
+    }
+
+    /**
+     * If we can't create a node path without the base directory name,
+     * it probably means that the initial node path is located in an higher scope
+     * than the base directory name.
+     * Example:
+     * Say we have the following file "lib/feature/index.js" with the following
+     * content:
+     *    import * as _1 from "../something.js";
+     *
+     * If providing the entrypoint as "lib/feature/index.js", the base
+     * directory name will be "lib/feature".
+     * However "../something.js" is located in lib/ and is out of the scope of
+     * lib/feature (base directory name). Consequently, the node path must
+     * be resolved relatively from the base directory name.
+     */
+    return path.relative(this.#baseDir, nodePath);
+  }
 
   private addNode(node: string): void {
     this.#projectGraph.addVertex({
-      id: node,
+      id: this.formatNodePath(node),
       adjacentTo: [],
       body: {
         size: 0
@@ -62,8 +131,8 @@ export class Cyclops {
   private linkNodes({ from, to }: { from: string; to: string }): void {
     this.addNode(to);
     this.#projectGraph.addEdge({
-      from,
-      to
+      from: this.formatNodePath(from),
+      to: this.formatNodePath(to)
     });
   }
 
@@ -175,6 +244,7 @@ export class Cyclops {
     );
     const rootFileContent = await this.fileReader.read(entrypointModulePath);
 
+    this.#baseDir = path.dirname(entrypointModulePath);
     this.addNode(entrypointModulePath);
     await this.followModuleDeclarationsFromFile(
       entrypointModulePath,

@@ -95,13 +95,15 @@ type CliOptions = {
   module: string;
   circularMaxDepth: number;
   graph: boolean;
+  baseDir: boolean;
 };
 
 async function displayGraphStructure({
   entrypoint,
   module,
   circularMaxDepth,
-  graph
+  graph,
+  baseDir
 }: CliOptions): Promise<void> {
   const finalEntrypoint = entrypoint ?? (await findDefaultEntrypoint());
   console.log(
@@ -114,7 +116,8 @@ async function displayGraphStructure({
   const instance = await cyclops({
     entrypoint: finalEntrypoint,
     module: module === "esm",
-    circularMaxDepth
+    circularMaxDepth,
+    includeBaseDir: baseDir
   });
   const timeTook = `${(performance.now() - start).toFixed(5)}ms`;
 
@@ -160,21 +163,26 @@ async function displayGraphStructure({
 
 sade("cyclops", true)
   .describe("Build the whole project structure")
-  .option("-e, --entrypoint", "Specify the project entrypoint file")
   .option(
-    "-m, --module",
-    "Module system used in the project, can be either 'cjs or 'esm'",
-    "esm"
+    "-b, --base-dir",
+    "Include the base directory name for each graph node",
+    false
   )
+  .option(
+    "-c, --circular-max-depth",
+    "Limit the depth when searching for circular dependencies",
+    Number.POSITIVE_INFINITY
+  )
+  .option("-e, --entrypoint", "Specify the project entrypoint file")
   .option(
     "-g, --graph",
     "Print the whole project graph as a table in the console",
     true
   )
   .option(
-    "-c, --circular-max-depth",
-    "Limit the depth when searching for circular dependencies",
-    Number.POSITIVE_INFINITY
+    "-m, --module",
+    "Module system used in the project, can be either 'cjs or 'esm'",
+    "esm"
   )
   .example(
     "./node_modules/.bin/cyclops --entrypoint=src/index.js --module=esm --circular-max-depth=5"

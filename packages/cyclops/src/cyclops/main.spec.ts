@@ -19,10 +19,16 @@ class InMemoryFileReader implements FileReader {
 
 async function buildProjectStructureUsingInMemoryFileExplorer(
   entrypoint: string,
-  module = true
+  module = true,
+  includeBaseDir = false
 ): Promise<CyclopsStructure> {
   const cyclops = new Cyclops(
-    { entrypoint, module, circularMaxDepth: Number.POSITIVE_INFINITY },
+    {
+      entrypoint,
+      module,
+      circularMaxDepth: Number.POSITIVE_INFINITY,
+      includeBaseDir
+    },
     new InMemoryFileReader()
   );
   const cyclopsInstance = await cyclops.initialize();
@@ -32,6 +38,161 @@ async function buildProjectStructureUsingInMemoryFileExplorer(
 
 describe("When traversing a JavaScript/Node.js project", () => {
   describe("When building the project structure", () => {
+    describe("When specifying a dirname while providing the entrypoint", () => {
+      describe("When the full dirname must be ignored from node paths", () => {
+        it("should remove by default the dirname from all relative paths of the graph", async () => {
+          const fakeFileSystem = {
+            "my-app-folder/my-project/index.js": `
+            import { createHtml } './apps/dashboard/index.js';
+            render(createHtml());
+            `,
+            "my-app-folder/my-project/libs/temporal/index.js": `
+            export const compareAsc = (d1, d2) => {};
+            `,
+            "my-app-folder/my-project/apps/dashboard/index.js": `
+              import { compareAsc } from "../../libs/temporal/index.js";
+              
+              export const createHtml = () => "<div> Date comparison </div>";
+            `
+          };
+          memfs.vol.fromJSON(fakeFileSystem, "./");
+
+          const projectStructure =
+            await buildProjectStructureUsingInMemoryFileExplorer(
+              "my-app-folder/my-project/index.js"
+            );
+
+          expect(projectStructure).to.be.deep.equal({
+            graph: {
+              "index.js": {
+                adjacentTo: ["apps/dashboard/index.js"],
+                id: "index.js",
+                body: { size: 0 }
+              },
+              "apps/dashboard/index.js": {
+                adjacentTo: ["libs/temporal/index.js"],
+                id: "apps/dashboard/index.js",
+                body: { size: 0 }
+              },
+              "libs/temporal/index.js": {
+                adjacentTo: [],
+                id: "libs/temporal/index.js",
+                body: { size: 0 }
+              }
+            },
+            files: [
+              "index.js",
+              "apps/dashboard/index.js",
+              "libs/temporal/index.js"
+            ],
+            circularDependencies: [],
+            hasCircularDependencies: false,
+            leaves: ["libs/temporal/index.js"]
+          });
+        });
+
+        describe("When the provided entrypoint is not at the top-level of the project", () => {
+          it("should include relative segments for files at an higher level than the entrypoint", async () => {
+            const fakeFileSystem = {
+              "libs/lib1/index.js": `
+                  import { something } from "../lib2/feature/index.js";
+              `,
+              "libs/lib2/feature/index.js": `
+                import * as util from "../../util.js";
+                export const something = () => {};
+              `,
+              "libs/util.js": ``
+            };
+            memfs.vol.fromJSON(fakeFileSystem, "./");
+
+            const projectStructure =
+              await buildProjectStructureUsingInMemoryFileExplorer(
+                "libs/lib1/index.js"
+              );
+
+            expect(projectStructure).to.be.deep.equal({
+              graph: {
+                "index.js": {
+                  adjacentTo: ["../lib2/feature/index.js"],
+                  id: "index.js",
+                  body: { size: 0 }
+                },
+                "../lib2/feature/index.js": {
+                  adjacentTo: ["../util.js"],
+                  id: "../lib2/feature/index.js",
+                  body: { size: 0 }
+                },
+                "../util.js": {
+                  adjacentTo: [],
+                  id: "../util.js",
+                  body: { size: 0 }
+                }
+              },
+              files: ["index.js", "../lib2/feature/index.js", "../util.js"],
+              circularDependencies: [],
+              hasCircularDependencies: false,
+              leaves: ["../util.js"]
+            });
+          });
+        });
+      });
+
+      describe("When the full dirname must be included in node paths", () => {
+        it("should include the relative dirname in every path of the graph", async () => {
+          const fakeFileSystem = {
+            "my-app-folder/my-project/index.js": `
+            import { createHtml } '../apps/dashboard/index.js';
+            render(createHtml());
+          `,
+            "my-app-folder/my-project/libs/temporal/index.js": `
+            export const compareAsc = (d1, d2) => {};
+          `,
+            "my-app-folder/apps/dashboard/index.js": `
+              import { compareAsc } from "../../my-project/libs/temporal/index.js";
+              
+              export const createHtml = () => "<div> Date comparison </div>";
+          `
+          };
+          memfs.vol.fromJSON(fakeFileSystem, "./");
+
+          const projectStructure =
+            await buildProjectStructureUsingInMemoryFileExplorer(
+              "my-app-folder/my-project/index.js",
+              true,
+              true
+            );
+
+          expect(projectStructure).to.be.deep.equal({
+            graph: {
+              "my-app-folder/my-project/index.js": {
+                adjacentTo: ["my-app-folder/apps/dashboard/index.js"],
+                id: "my-app-folder/my-project/index.js",
+                body: { size: 0 }
+              },
+              "my-app-folder/apps/dashboard/index.js": {
+                adjacentTo: ["my-app-folder/my-project/libs/temporal/index.js"],
+                id: "my-app-folder/apps/dashboard/index.js",
+                body: { size: 0 }
+              },
+              "my-app-folder/my-project/libs/temporal/index.js": {
+                adjacentTo: [],
+                id: "my-app-folder/my-project/libs/temporal/index.js",
+                body: { size: 0 }
+              }
+            },
+            files: [
+              "my-app-folder/my-project/index.js",
+              "my-app-folder/apps/dashboard/index.js",
+              "my-app-folder/my-project/libs/temporal/index.js"
+            ],
+            circularDependencies: [],
+            hasCircularDependencies: false,
+            leaves: ["my-app-folder/my-project/libs/temporal/index.js"]
+          });
+        });
+      });
+    });
+
     describe("When the looked up file exists and can be read", () => {
       describe("When the file does not have any module declarations", () => {
         it("cyclops should build a graph with only the root node", async () => {
@@ -830,7 +991,8 @@ describe("When traversing a JavaScript/Node.js project", () => {
             {
               entrypoint: "a.js",
               module: true,
-              circularMaxDepth: Number.POSITIVE_INFINITY
+              circularMaxDepth: Number.POSITIVE_INFINITY,
+              includeBaseDir: false
             },
             new InMemoryFileReader()
           );
