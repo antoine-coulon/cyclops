@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 
@@ -10,6 +9,7 @@ import { table, TableUserConfig } from "table";
 
 import { CyclopsStructure } from "../src/cyclops/main.js";
 import cyclops from "../src/index.js";
+import { findWorkspaceEntrypointModule } from "../src/workspace/index.js";
 
 const kTableConfig: TableUserConfig = {
   header: {
@@ -42,19 +42,6 @@ const kTableConfig: TableUserConfig = {
     joinJoin: kleur.blue(`┼`)
   }
 };
-
-async function findDefaultEntrypoint(): Promise<string> {
-  // look for package.json
-  const packageJson = JSON.parse(
-    await readFile(`${process.cwd()}/package.json`, "utf-8")
-  );
-  if (packageJson.main) {
-    return path.resolve(process.cwd(), packageJson.main);
-  }
-  throw new Error(
-    "Could not automatically find the default entrypoint. Please try to provide it manually through the --entrypoint CLI option."
-  );
-}
 
 function truncateString(filePath: string): string {
   return filePath.length > 15
@@ -105,16 +92,17 @@ async function displayGraphStructure({
   graph,
   baseDir
 }: CliOptions): Promise<void> {
-  const finalEntrypoint = entrypoint ?? (await findDefaultEntrypoint());
+  const entrypointModule =
+    entrypoint ?? (await findWorkspaceEntrypointModule());
   console.log(
     `\n ${kleur.red().bold("Cyclops")} entrypoint: ${kleur
       .yellow()
-      .bold(`${finalEntrypoint}`)}`
+      .bold(`${entrypointModule}`)}`
   );
 
   const start = performance.now();
   const instance = await cyclops({
-    entrypoint: finalEntrypoint,
+    entrypoint: entrypointModule,
     module: module === "esm",
     circularMaxDepth,
     includeBaseDir: baseDir
