@@ -1,4 +1,4 @@
-import { Cyclops, CyclopsConfig, CyclopsInstance } from "./cyclops/main.js";
+import { Cyclops, CyclopsConfig, CyclopsInstance } from "./src/cyclops.js";
 
 export default async function cyclops(
   config: CyclopsConfig

@@ -10,6 +10,6 @@
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src", "bin", "lib"],
+  "include": ["src", "bin", "lib", "index.ts"],
   "exclude": ["node_modules", "dist"]
 }

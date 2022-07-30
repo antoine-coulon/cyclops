@@ -4,9 +4,8 @@
 import { expect } from "chai";
 import * as memfs from "memfs";
 
-import { FileReader } from "../file-reader";
-
-import { Cyclops, CyclopsStructure } from "./main";
+import { Cyclops, CyclopsStructure } from "./cyclops";
+import { FileReader } from "./filesystem/file-reader.js";
 
 class InMemoryFileReader implements FileReader {
   read(filename: string): Promise<string> {

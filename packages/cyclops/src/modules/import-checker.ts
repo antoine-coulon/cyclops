@@ -2,7 +2,7 @@ import path from "node:path";
 
 import builtinModules from "builtin-modules";
 
-import { FileReader } from "../../file-reader";
+import { FileReader } from "../filesystem/file-reader";
 
 const NODE_PROTOCOL = "node:";
 

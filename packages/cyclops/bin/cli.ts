@@ -7,8 +7,8 @@ import kleur from "kleur";
 import sade from "sade";
 import { table, TableUserConfig } from "table";
 
-import { CyclopsStructure } from "../src/cyclops/main.js";
-import cyclops from "../src/index.js";
+import cyclops from "../index.js";
+import { CyclopsStructure } from "../src/cyclops.js";
 import { findWorkspaceEntrypointModule } from "../src/workspace/index.js";
 
 const kTableConfig: TableUserConfig = {

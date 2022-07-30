@@ -4,8 +4,7 @@ import { DiGraph, VertexDefinition } from "digraph-js";
 import { walk } from "estree-walker";
 import { parseScript } from "meriyah";
 
-import { FileReader, FileSystemReader } from "../file-reader/index.js";
-
+import { FileReader, FileSystemReader } from "./filesystem/file-reader.js";
 import { isCommonJSModuleImport } from "./modules/cjs.js";
 import { isEcmaScriptModuleDeclaration } from "./modules/esm.js";
 import {
