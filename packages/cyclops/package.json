@@ -3,12 +3,15 @@
   "version": "0.0.1",
   "description": "Automatically construct and visualize Graphs generated from your Node.js project",
   "main": "dist/src/index.js",
-  "type": "module",
-  "author": "Antoine Coulon",
-  "license": "MIT",
   "bin": {
     "cyclops": "./dist/bin/cli.js"
   },
+  "type": "module",
+  "exports": {
+    ".": "./dist/src/index.js"
+  },
+  "author": "Antoine Coulon",
+  "license": "MIT",
   "scripts": {
     "prestart": "npm run build",
     "prepublishOnly": "npm run test && npm run build",
