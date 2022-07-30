@@ -7,7 +7,7 @@ export async function findWorkspaceEntrypointModule(): Promise<string> {
     await readFile(path.join(process.cwd(), "package.json"), "utf-8")
   );
   if (packageJson.main) {
-    return path.resolve(process.cwd(), packageJson.main);
+    return packageJson.main;
   }
   throw new Error(
     `Could not automatically find the default entrypoint while looking at the "main" property
