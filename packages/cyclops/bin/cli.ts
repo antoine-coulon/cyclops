@@ -152,12 +152,12 @@ async function displayGraphStructure({
 sade("cyclops", true)
   .describe("Build the whole project structure")
   .option(
-    "-b, --base-dir",
+    "-b, --baseDir",
     "Include the base directory name for each graph node",
     false
   )
   .option(
-    "-c, --circular-max-depth",
+    "-c, --circularMaxDepth",
     "Limit the depth when searching for circular dependencies",
     Number.POSITIVE_INFINITY
   )
